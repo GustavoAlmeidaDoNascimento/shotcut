@@ -254,9 +254,8 @@ static int filterGetImage(mlt_frame frame,
     const double zoom = mlt_properties_get_double(frameProperties, data->prop);
     mlt_service_lock(MLT_FILTER_SERVICE(filter));
     applyZoom(data, frame, zoom);
-    const int error = mlt_frame_get_image(frame, image, format, width, height, writable);
     mlt_service_unlock(MLT_FILTER_SERVICE(filter));
-    return error;
+    return mlt_frame_get_image(frame, image, format, width, height, writable);
 }
 
 static mlt_frame filterProcess(mlt_filter filter, mlt_frame frame)

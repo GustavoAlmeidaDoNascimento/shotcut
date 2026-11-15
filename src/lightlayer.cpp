@@ -168,6 +168,14 @@ AnalyzeStatus analyze(const QString &xml,
         producer.seek(0);
 
         const double fps = profile.fps() > 0.0 ? profile.fps() : 30.0;
+        double b0 = 0.0;
+        double b1 = 0.0;
+        double b2 = 0.0;
+        double a1 = 0.0;
+        double a2 = 0.0;
+        double z1 = 0.0;
+        double z2 = 0.0;
+        int bassRate = 0;
         unsigned char peakByte = 0;
         for (int i = 0; i < length; ++i) {
             if (cancel.load()) {
@@ -182,9 +190,38 @@ AnalyzeStatus analyze(const QString &xml,
                 int frequency = 48000;
                 int channelCount = 2;
                 int samples = mlt_audio_calculate_frame_samples(fps, frequency, i);
-                frame->get_audio(format, frequency, channelCount, samples);
-                peak = std::max(frame->get_double("meta.media.audio_level.0"),
-                                frame->get_double("meta.media.audio_level.1"));
+                const int16_t *pcm = static_cast<const int16_t *>(
+                    frame->get_audio(format, frequency, channelCount, samples));
+                if (pcm && samples > 0 && channelCount > 0 && frequency >= 1000) {
+                    if (bassRate != frequency) {
+                        constexpr double kPi = 3.14159265358979323846;
+                        const double q = 0.70710678118;
+                        const double w0 = 2.0 * kPi * 120.0 / frequency;
+                        const double alpha = std::sin(w0) / (2.0 * q);
+                        const double cosw = std::cos(w0);
+                        const double a0 = 1.0 + alpha;
+                        b0 = ((1.0 - cosw) / 2.0) / a0;
+                        b1 = (1.0 - cosw) / a0;
+                        b2 = b0;
+                        a1 = (-2.0 * cosw) / a0;
+                        a2 = (1.0 - alpha) / a0;
+                        z1 = 0.0;
+                        z2 = 0.0;
+                        bassRate = frequency;
+                    }
+                    for (int sampleIndex = 0; sampleIndex < samples; ++sampleIndex) {
+                        double mono = 0.0;
+                        for (int channel = 0; channel < channelCount; ++channel)
+                            mono += pcm[sampleIndex * channelCount + channel] / 32768.0;
+                        mono /= channelCount;
+                        const double output = b0 * mono + z1;
+                        z1 = b1 * mono - a1 * output + z2;
+                        z2 = b2 * mono - a2 * output;
+                        peak = std::max(peak, std::fabs(output));
+                    }
+                    if (peak > 1.0)
+                        peak = 1.0;
+                }
             }
             if (peak < 0.0)
                 peak = 0.0;

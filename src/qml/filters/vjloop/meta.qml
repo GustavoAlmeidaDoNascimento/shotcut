@@ -10,4 +10,41 @@ Metadata {
     qml: 'ui.qml'
     icon: 'icon.webp'
     allowMultiple: false
+
+    keyframes {
+        allowAnimateIn: true
+        allowAnimateOut: true
+        simpleProperties: ['threshold', 'release', 'intensity', 'opacity']
+        parameters: [
+            Parameter {
+                name: qsTr('Threshold')
+                property: 'threshold'
+                isCurve: true
+                minimum: -60
+                maximum: 0
+                units: 'dB'
+            },
+            Parameter {
+                name: qsTr('Release')
+                property: 'release'
+                isCurve: true
+                minimum: 0
+                maximum: 1
+            },
+            Parameter {
+                name: qsTr('Intensity')
+                property: 'intensity'
+                isCurve: true
+                minimum: 0
+                maximum: 1
+            },
+            Parameter {
+                name: qsTr('Opacity')
+                property: 'opacity'
+                isCurve: true
+                minimum: 0
+                maximum: 1
+            }
+        ]
+    }
 }

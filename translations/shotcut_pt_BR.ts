@@ -14157,6 +14157,10 @@ IRE: %2</translation>
         <translation>Camada de luz</translation>
     </message>
     <message>
+        <source>Release</source>
+        <translation>Liberação</translation>
+    </message>
+    <message>
         <source>white flash strobe light dj vj audio music</source>
         <comment>search keywords for the Light Layer video filter</comment>
         <translation>flash branco estrobo luz dj vj áudio música</translation>
@@ -17268,24 +17272,24 @@ IRE: %2</translation>
         <translation>0 fica parado. Valores maiores dão mais zoom no mesmo grave.</translation>
     </message>
     <message>
-        <source>Timeline &gt; Add Light Layer reads the audio already on the timeline and adds a video track of white flashes on black. These sliders reshape that flash without reading the audio again. After you change the music, run Add Light Layer again and remove the old light track.</source>
-        <translation>Linha do tempo &gt; Adicionar camada de luz lê o áudio que já está na linha do tempo e adiciona uma faixa de vídeo com flashes brancos no preto. Estes controles mudam o flash sem ler o áudio de novo. Depois de mudar a música, rode Adicionar camada de luz outra vez e apague a faixa de luz antiga.</translation>
+        <source>The white flash is drawn on top of this video. Between hits the picture stays as it is.</source>
+        <translation>O flash branco entra por cima deste vídeo. Entre os picos a imagem continua como está.</translation>
     </message>
     <message>
         <source>Closer to 0 reacts only to the loudest hits. More negative reacts to quieter sound.</source>
         <translation>Perto de 0 só reage aos picos mais altos. Mais negativo reage a sons mais baixos.</translation>
     </message>
     <message>
-        <source>How quickly a flash fades back to black.</source>
-        <translation>A rapidez com que o flash volta para o preto.</translation>
+        <source>How quickly a flash fades so the picture shows through again.</source>
+        <translation>A rapidez com que o flash some e a imagem volta a aparecer.</translation>
     </message>
     <message>
         <source>Scales every flash. 100% lets the loud hits go full white.</source>
         <translation>Escala cada flash. 100% deixa os picos altos ficarem branco total.</translation>
     </message>
     <message>
-        <source>100% is solid white on black. Lower values make the flashes dimmer.</source>
-        <translation>100% é branco sólido no preto. Valores menores deixam os flashes mais fracos.</translation>
+        <source>100% lets a loud hit cover the picture in white. Lower values keep more of the video visible.</source>
+        <translation>100% deixa um pico alto cobrir a imagem de branco. Valores menores deixam mais do vídeo visível.</translation>
     </message>
     <message>
         <location filename="../src/qml/filters/alpha_adjust/ui.qml" line="58"/>

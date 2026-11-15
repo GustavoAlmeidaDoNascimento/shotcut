@@ -19,8 +19,7 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import Shotcut.Controls as Shotcut
 
-Item {
-    property bool blockUpdate: true
+Shotcut.KeyframableFilter {
     property string thresholdParam: 'threshold'
     property string releaseParam: 'release'
     property string intensityParam: 'intensity'
@@ -30,17 +29,43 @@ Item {
     property double intensityDefault: 100
     property double opacityDefault: 100
 
-    function setControls() {
-        blockUpdate = true;
-        thresholdSlider.value = filter.getDouble(thresholdParam);
-        releaseSlider.value = filter.getDouble(releaseParam) * 100;
-        intensitySlider.value = filter.getDouble(intensityParam) * 100;
-        opacitySlider.value = filter.getDouble(opacityParam) * 100;
-        blockUpdate = false;
+    function sliderToProperty(slider) {
+        return slider === thresholdSlider ? slider.value : slider.value / 100;
     }
 
-    width: 420
-    height: 280
+    function setControls() {
+        var position = getPosition();
+        blockUpdate = true;
+        thresholdSlider.value = filter.getDouble(thresholdParam, position);
+        thresholdKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount(thresholdParam) > 0;
+        releaseSlider.value = filter.getDouble(releaseParam, position) * 100;
+        releaseKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount(releaseParam) > 0;
+        intensitySlider.value = filter.getDouble(intensityParam, position) * 100;
+        intensityKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount(intensityParam) > 0;
+        opacitySlider.value = filter.getDouble(opacityParam, position) * 100;
+        opacityKeyframesButton.checked = filter.animateIn <= 0 && filter.animateOut <= 0 && filter.keyframeCount(opacityParam) > 0;
+        blockUpdate = false;
+        enableControls(isSimpleKeyframesActive());
+    }
+
+    function enableControls(enabled) {
+        thresholdSlider.enabled = releaseSlider.enabled = intensitySlider.enabled = opacitySlider.enabled = enabled;
+    }
+
+    function updateSimpleKeyframes() {
+        setControls();
+        updateFilter(thresholdParam, sliderToProperty(thresholdSlider), thresholdKeyframesButton, null);
+        updateFilter(releaseParam, sliderToProperty(releaseSlider), releaseKeyframesButton, null);
+        updateFilter(intensityParam, sliderToProperty(intensitySlider), intensityKeyframesButton, null);
+        updateFilter(opacityParam, sliderToProperty(opacitySlider), opacityKeyframesButton, null);
+    }
+
+    keyframableParameters: [thresholdParam, releaseParam, intensityParam, opacityParam]
+    startValues: [thresholdDefault, releaseDefault / 100, intensityDefault / 100, opacityDefault / 100]
+    middleValues: [thresholdDefault, releaseDefault / 100, intensityDefault / 100, opacityDefault / 100]
+    endValues: [thresholdDefault, releaseDefault / 100, intensityDefault / 100, opacityDefault / 100]
+    width: 480
+    height: 320
     Component.onCompleted: {
         if (filter.isNew) {
             filter.set(thresholdParam, thresholdDefault);
@@ -52,28 +77,16 @@ Item {
         setControls();
     }
 
-    Connections {
-        function onChanged() {
-            setControls();
-        }
-
-        function onPropertyChanged() {
-            setControls();
-        }
-
-        target: filter
-    }
-
     GridLayout {
         anchors.fill: parent
         anchors.margins: 8
-        columns: 3
+        columns: 4
 
         Label {
-            Layout.columnSpan: 3
+            Layout.columnSpan: 4
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
-            text: qsTr('Timeline > Add Light Layer reads the audio already on the timeline and adds a video track of white flashes on black. These sliders reshape that flash without reading the audio again. After you change the music, run Add Light Layer again and remove the old light track.')
+            text: qsTr('The white flash is drawn on top of this video. Between hits the picture stays as it is.')
         }
 
         Label {
@@ -84,9 +97,13 @@ Item {
         Shotcut.Preset {
             id: preset
 
-            Layout.columnSpan: 2
+            Layout.columnSpan: 3
             parameters: [thresholdParam, releaseParam, intensityParam, opacityParam]
-            onPresetSelected: setControls()
+            onBeforePresetLoaded: resetSimpleKeyframes()
+            onPresetSelected: {
+                setControls();
+                initializeSimpleKeyframes();
+            }
         }
 
         Label {
@@ -104,21 +121,27 @@ Item {
             maximumValue: 0
             decimals: 1
             suffix: ' dB'
-            onValueChanged: {
-                if (!blockUpdate)
-                    filter.set(thresholdParam, value);
-            }
+            onValueChanged: updateFilter(thresholdParam, sliderToProperty(thresholdSlider), thresholdKeyframesButton, getPosition())
         }
 
         Shotcut.UndoButton {
             onClicked: thresholdSlider.value = thresholdDefault
         }
 
+        Shotcut.KeyframesButton {
+            id: thresholdKeyframesButton
+
+            onToggled: {
+                enableControls(true);
+                toggleKeyframes(checked, thresholdParam, sliderToProperty(thresholdSlider));
+            }
+        }
+
         Label {
             text: qsTr('Release')
             Layout.alignment: Qt.AlignRight
             Shotcut.HoverTip {
-                text: qsTr('How quickly a flash fades back to black.')
+                text: qsTr('How quickly a flash fades so the picture shows through again.')
             }
         }
 
@@ -129,14 +152,20 @@ Item {
             maximumValue: 100
             decimals: 0
             suffix: ' %'
-            onValueChanged: {
-                if (!blockUpdate)
-                    filter.set(releaseParam, value / 100);
-            }
+            onValueChanged: updateFilter(releaseParam, sliderToProperty(releaseSlider), releaseKeyframesButton, getPosition())
         }
 
         Shotcut.UndoButton {
             onClicked: releaseSlider.value = releaseDefault
+        }
+
+        Shotcut.KeyframesButton {
+            id: releaseKeyframesButton
+
+            onToggled: {
+                enableControls(true);
+                toggleKeyframes(checked, releaseParam, sliderToProperty(releaseSlider));
+            }
         }
 
         Label {
@@ -154,21 +183,27 @@ Item {
             maximumValue: 100
             decimals: 0
             suffix: ' %'
-            onValueChanged: {
-                if (!blockUpdate)
-                    filter.set(intensityParam, value / 100);
-            }
+            onValueChanged: updateFilter(intensityParam, sliderToProperty(intensitySlider), intensityKeyframesButton, getPosition())
         }
 
         Shotcut.UndoButton {
             onClicked: intensitySlider.value = intensityDefault
         }
 
+        Shotcut.KeyframesButton {
+            id: intensityKeyframesButton
+
+            onToggled: {
+                enableControls(true);
+                toggleKeyframes(checked, intensityParam, sliderToProperty(intensitySlider));
+            }
+        }
+
         Label {
             text: qsTr('Opacity')
             Layout.alignment: Qt.AlignRight
             Shotcut.HoverTip {
-                text: qsTr('100% is solid white on black. Lower values make the flashes dimmer.')
+                text: qsTr('100% lets a loud hit cover the picture in white. Lower values keep more of the video visible.')
             }
         }
 
@@ -179,19 +214,61 @@ Item {
             maximumValue: 100
             decimals: 0
             suffix: ' %'
-            onValueChanged: {
-                if (!blockUpdate)
-                    filter.set(opacityParam, value / 100);
-            }
+            onValueChanged: updateFilter(opacityParam, sliderToProperty(opacitySlider), opacityKeyframesButton, getPosition())
         }
 
         Shotcut.UndoButton {
             onClicked: opacitySlider.value = opacityDefault
         }
 
+        Shotcut.KeyframesButton {
+            id: opacityKeyframesButton
+
+            onToggled: {
+                enableControls(true);
+                toggleKeyframes(checked, opacityParam, sliderToProperty(opacitySlider));
+            }
+        }
+
         Item {
             Layout.fillHeight: true
-            Layout.columnSpan: 3
+            Layout.columnSpan: 4
         }
+    }
+
+    Connections {
+        function onChanged() {
+            setControls();
+        }
+
+        function onInChanged() {
+            updateSimpleKeyframes();
+        }
+
+        function onOutChanged() {
+            updateSimpleKeyframes();
+        }
+
+        function onAnimateInChanged() {
+            updateSimpleKeyframes();
+        }
+
+        function onAnimateOutChanged() {
+            updateSimpleKeyframes();
+        }
+
+        function onPropertyChanged(name) {
+            setControls();
+        }
+
+        target: filter
+    }
+
+    Connections {
+        function onPositionChanged() {
+            setControls();
+        }
+
+        target: producer
     }
 }

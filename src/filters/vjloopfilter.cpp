@@ -21,6 +21,8 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
+#include <cstdio>
 #include <cstring>
 #include <vector>
 
@@ -33,6 +35,16 @@ struct PrivateData
     int hasPos;
     double level;
     mlt_position lastPos;
+    double b0;
+    double b1;
+    double b2;
+    double a1;
+    double a2;
+    double z1;
+    double z2;
+    int bassRate;
+    double liveLinear;
+    char prop[40];
 };
 
 double clamp01(double value)
@@ -117,35 +129,81 @@ double updateLevel(PrivateData *data,
     return data->level;
 }
 
-double peakFromAudio(mlt_frame frame)
+void setBassLowpass(PrivateData *data, int frequency)
 {
-    mlt_audio_format format = mlt_audio_float;
+    if (frequency < 1000)
+        frequency = 48000;
+    if (data->bassRate == frequency)
+        return;
+
+    constexpr double kPi = 3.14159265358979323846;
+    double cutoff = 120.0;
+    const double nyquist = frequency * 0.45;
+    if (cutoff > nyquist)
+        cutoff = nyquist;
+    const double q = 0.70710678118;
+    const double w0 = 2.0 * kPi * cutoff / frequency;
+    const double alpha = std::sin(w0) / (2.0 * q);
+    const double cosw = std::cos(w0);
+    const double a0 = 1.0 + alpha;
+    data->b0 = ((1.0 - cosw) / 2.0) / a0;
+    data->b1 = (1.0 - cosw) / a0;
+    data->b2 = data->b0;
+    data->a1 = (-2.0 * cosw) / a0;
+    data->a2 = (1.0 - alpha) / a0;
+    data->z1 = 0.0;
+    data->z2 = 0.0;
+    data->bassRate = frequency;
+}
+
+double bassFromAudio(PrivateData *data, mlt_frame frame, mlt_position position, double fps)
+{
+    mlt_audio_format format = mlt_audio_s16;
     void *buffer = nullptr;
-    int frequency = 0;
-    int channels = 0;
-    int samples = 0;
+    int frequency = 48000;
+    int channels = 2;
+    int samples = mlt_audio_calculate_frame_samples(std::max(1.0, fps), frequency, position);
+    if (samples < 1)
+        samples = 1600;
     if (mlt_frame_get_audio(frame, &buffer, &format, &frequency, &channels, &samples) != 0)
         return 0.0;
-    if (!buffer || samples < 1 || channels < 1 || format != mlt_audio_float)
+    if (!buffer || samples < 1 || channels < 1 || format != mlt_audio_s16)
         return 0.0;
-    const float *samplesPtr = static_cast<const float *>(buffer);
-    const int count = samples * channels;
-    float peak = 0.f;
-    for (int i = 0; i < count; ++i)
-        peak = std::max(peak, std::fabs(samplesPtr[i]));
-    return std::min(1.0, static_cast<double>(peak));
+
+    if (!data->hasPos || position != data->lastPos + 1) {
+        data->z1 = 0.0;
+        data->z2 = 0.0;
+        data->bassRate = 0;
+    }
+    setBassLowpass(data, frequency);
+
+    const auto *pcm = static_cast<const int16_t *>(buffer);
+    double peak = 0.0;
+    for (int i = 0; i < samples; ++i) {
+        double mono = 0.0;
+        for (int channel = 0; channel < channels; ++channel)
+            mono += pcm[i * channels + channel] / 32768.0;
+        mono /= channels;
+        const double output = data->b0 * mono + data->z1;
+        data->z1 = data->b1 * mono - data->a1 * output + data->z2;
+        data->z2 = data->b2 * mono - data->a2 * output;
+        peak = std::max(peak, std::fabs(output));
+    }
+    return std::min(1.0, peak);
 }
 
 void paintWhite(uint8_t *image, int width, int height, double level)
 {
-    const auto value = static_cast<uint8_t>(std::lround(clamp01(level) * 255.0));
+    const int mix = static_cast<int>(std::lround(clamp01(level) * 255.0));
+    if (mix <= 0)
+        return;
+    const int keep = 255 - mix;
     const int count = width * height;
     for (int i = 0; i < count; ++i) {
         uint8_t *pixel = image + i * 4;
-        pixel[0] = value;
-        pixel[1] = value;
-        pixel[2] = value;
-        pixel[3] = 255;
+        pixel[0] = static_cast<uint8_t>((pixel[0] * keep + 255 * mix + 127) / 255);
+        pixel[1] = static_cast<uint8_t>((pixel[1] * keep + 255 * mix + 127) / 255);
+        pixel[2] = static_cast<uint8_t>((pixel[2] * keep + 255 * mix + 127) / 255);
     }
 }
 
@@ -198,18 +256,30 @@ int filterGetImage(mlt_frame frame,
     const bool useLiveAudio = data->envelope.empty();
     mlt_service_unlock(MLT_FILTER_SERVICE(filter));
 
-    if (useLiveAudio)
-        linear = peakFromAudio(frame);
+    if (useLiveAudio) {
+        if (mlt_properties_exists(MLT_FRAME_PROPERTIES(frame), data->prop))
+            linear = mlt_properties_get_double(MLT_FRAME_PROPERTIES(frame), data->prop);
+        else if (mlt_properties_get_double(MLT_FRAME_PROPERTIES(frame), "_speed") == 0.0)
+            linear = bassFromAudio(data, frame, position, fps);
+        else
+            linear = data->liveLinear;
+    }
 
+    const int animLength = static_cast<int>(mlt_filter_get_length2(filter, frame));
+    const int animPosition = static_cast<int>(position);
     mlt_service_lock(MLT_FILTER_SERVICE(filter));
-    const double amount = amountFromPeak(linear, mlt_properties_get_double(filterProperties, "threshold"));
-    const double level = updateLevel(data,
-                                     position,
-                                     fps,
-                                     amount,
-                                     mlt_properties_get_double(filterProperties, "release"),
-                                     mlt_properties_get_double(filterProperties, "intensity"));
-    const double opacity = clamp01(mlt_properties_get_double(filterProperties, "opacity"));
+    const double amount = amountFromPeak(
+        linear,
+        mlt_properties_anim_get_double(filterProperties, "threshold", animPosition, animLength));
+    const double level = updateLevel(
+        data,
+        position,
+        fps,
+        amount,
+        mlt_properties_anim_get_double(filterProperties, "release", animPosition, animLength),
+        mlt_properties_anim_get_double(filterProperties, "intensity", animPosition, animLength));
+    const double opacity = clamp01(
+        mlt_properties_anim_get_double(filterProperties, "opacity", animPosition, animLength));
     mlt_service_unlock(MLT_FILTER_SERVICE(filter));
 
     *format = mlt_image_rgba;
@@ -221,8 +291,63 @@ int filterGetImage(mlt_frame frame,
     return 0;
 }
 
+static int filterGetAudio(mlt_frame frame,
+                          void **buffer,
+                          mlt_audio_format *format,
+                          int *frequency,
+                          int *channels,
+                          int *samples)
+{
+    auto *filter = static_cast<mlt_filter>(mlt_frame_pop_audio(frame));
+    auto *data = static_cast<PrivateData *>(filter->child);
+    const int error = mlt_frame_get_audio(frame, buffer, format, frequency, channels, samples);
+    if (error || !buffer || !*buffer || !format || !frequency || !channels || !samples)
+        return error;
+    if (*samples < 1 || *channels < 1)
+        return 0;
+    if (*format != mlt_audio_s16 && *format != mlt_audio_f32le && *format != mlt_audio_float)
+        return 0;
+
+    const mlt_position position = mlt_filter_get_position(filter, frame);
+    if (!data->hasPos || position != data->lastPos + 1) {
+        data->z1 = 0.0;
+        data->z2 = 0.0;
+        data->bassRate = 0;
+    }
+    setBassLowpass(data, *frequency);
+
+    const auto *ints = static_cast<const int16_t *>(*buffer);
+    const auto *floats = static_cast<const float *>(*buffer);
+    const bool planar = *format == mlt_audio_float;
+    double peak = 0.0;
+    for (int i = 0; i < *samples; ++i) {
+        double mono = 0.0;
+        for (int channel = 0; channel < *channels; ++channel) {
+            double sample = 0.0;
+            if (*format == mlt_audio_s16)
+                sample = ints[i * (*channels) + channel] / 32768.0;
+            else if (planar)
+                sample = floats[channel * (*samples) + i];
+            else
+                sample = floats[i * (*channels) + channel];
+            mono += sample;
+        }
+        mono /= *channels;
+        const double output = data->b0 * mono + data->z1;
+        data->z1 = data->b1 * mono - data->a1 * output + data->z2;
+        data->z2 = data->b2 * mono - data->a2 * output;
+        peak = std::max(peak, std::fabs(output));
+    }
+    peak = std::min(1.0, peak);
+    data->liveLinear = peak;
+    mlt_properties_set_double(MLT_FRAME_PROPERTIES(frame), data->prop, peak);
+    return 0;
+}
+
 mlt_frame filterProcess(mlt_filter filter, mlt_frame frame)
 {
+    mlt_frame_push_audio(frame, filter);
+    mlt_frame_push_audio(frame, reinterpret_cast<void *>(filterGetAudio));
     if (mlt_frame_is_test_card(frame)) {
         mlt_properties frameProperties = MLT_FRAME_PROPERTIES(frame);
         mlt_profile profile = mlt_service_profile(MLT_FILTER_SERVICE(filter));
@@ -266,6 +391,11 @@ extern "C" mlt_filter filter_vjloop_init(mlt_profile profile,
     data->hasPos = 0;
     data->level = 0.0;
     data->lastPos = 0;
+    data->b0 = data->b1 = data->b2 = data->a1 = data->a2 = 0.0;
+    data->z1 = data->z2 = 0.0;
+    data->bassRate = 0;
+    data->liveLinear = 0.0;
+    std::snprintf(data->prop, sizeof(data->prop), "vjloop.%p", static_cast<void *>(filter));
 
     if (filter && data) {
         mlt_properties properties = MLT_FILTER_PROPERTIES(filter);
