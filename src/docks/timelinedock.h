@@ -136,6 +136,7 @@ signals:
 public slots:
     int addAudioTrack();
     int addVideoTrack();
+    void addLightLayer();
     void alignSelectedClips();
     void showAudioMixingAssistantDialog();
     void onShowFrame(const SharedFrame &frame);

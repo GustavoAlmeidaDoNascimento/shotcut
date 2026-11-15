@@ -28,7 +28,9 @@
 #include "dialogs/longuitask.h"
 #include "dialogs/resourcedialog.h"
 #include "jobs/meltjob.h"
+#include "lightlayer.h"
 #include "mainwindow.h"
+#include "mltcontroller.h"
 #include "models/audiolevelstask.h"
 #include "models/multitrackmodel.h"
 #include "proxymanager.h"
@@ -244,6 +246,8 @@ TimelineDock::TimelineDock(QWidget *parent)
     QMenu *trackOperationsMenu = new QMenu(tr("Track Operations"), this);
     trackOperationsMenu->addAction(Actions["timelineAddAudioTrackAction"]);
     trackOperationsMenu->addAction(Actions["timelineAddVideoTrackAction"]);
+    trackOperationsMenu->addAction(Actions["timelineAddLightLayerAction"]);
+    m_mainMenu->addAction(Actions["timelineAddLightLayerAction"]);
     trackOperationsMenu->addAction(Actions["timelineInsertTrackAction"]);
     trackOperationsMenu->addAction(Actions["timelineRemoveTrackAction"]);
     trackOperationsMenu->addAction(Actions["timelineMoveTrackUpAction"]);
@@ -551,6 +555,14 @@ void TimelineDock::setupActions()
         addVideoTrack();
     });
     Actions.add("timelineAddVideoTrackAction", action);
+
+    action = new QAction(tr("Add Light Layer"), this);
+    connect(action, &QAction::triggered, this, [this]() {
+        show();
+        raise();
+        addLightLayer();
+    });
+    Actions.add("timelineAddLightLayerAction", action);
 
     action = new QAction(tr("Insert Track"), this);
     action->setShortcut(QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_I));
@@ -2657,6 +2669,107 @@ int TimelineDock::addVideoTrack()
         setSelection();
     MAIN.undoStack()->push(new Timeline::AddTrackCommand(m_model, true));
     return 0;
+}
+
+void TimelineDock::addLightLayer()
+{
+    static bool running = false;
+    if (running)
+        return;
+    if (!isMultitrackValid()) {
+        QMessageBox::information(this,
+                                 tr("Light layer"),
+                                 tr("Put music on the timeline first."));
+        return;
+    }
+
+    MLT.pause();
+    const int fullLength = m_model.tractor()->get_length();
+    if (fullLength < 2) {
+        QMessageBox::information(this,
+                                 tr("Light layer"),
+                                 tr("Put music on the timeline first."));
+        return;
+    }
+
+    mlt_profile profile = MLT.profile().get_profile();
+    const double fps = profile->frame_rate_den > 0
+                           ? double(profile->frame_rate_num) / double(profile->frame_rate_den)
+                           : 30.0;
+    const int maxFrames = qMax(2, int(6 * 3600 * fps));
+    const bool truncated = fullLength > maxFrames;
+    const int length = truncated ? maxFrames : fullLength;
+    const QString xml = MLT.XML(m_model.tractor());
+
+    running = true;
+    QByteArray envelope;
+    const LightLayer::AnalyzeStatus status = LightLayer::analyze(xml,
+                                                                  profile->width,
+                                                                  profile->height,
+                                                                  profile->sample_aspect_num,
+                                                                  profile->sample_aspect_den,
+                                                                  profile->display_aspect_num,
+                                                                  profile->display_aspect_den,
+                                                                  profile->progressive,
+                                                                  profile->colorspace,
+                                                                  profile->frame_rate_num,
+                                                                  profile->frame_rate_den,
+                                                                  length,
+                                                                  envelope,
+                                                                  this);
+    running = false;
+
+    if (status == LightLayer::AnalyzeStatus::Canceled) {
+        MAIN.showStatusMessage(tr("Light layer canceled."));
+        return;
+    }
+    if (status == LightLayer::AnalyzeStatus::NoAudio) {
+        QMessageBox::information(this,
+                                 tr("Light layer"),
+                                 tr("No audio was found on the timeline."));
+        return;
+    }
+    if (status != LightLayer::AnalyzeStatus::Ok || envelope.isEmpty()) {
+        QMessageBox::warning(this,
+                             tr("Light layer"),
+                             tr("Could not read the timeline audio."));
+        return;
+    }
+
+    Mlt::Producer clip(MLT.profile(), "color", "black");
+    Mlt::Filter filter(MLT.profile(), "vjloop");
+    if (!clip.is_valid() || !filter.is_valid()) {
+        QMessageBox::warning(this, tr("Light layer"), tr("Could not create the light layer."));
+        return;
+    }
+
+    clip.set("length", clip.frames_to_time(length, mlt_time_clock));
+    clip.set("eof", "pause");
+    clip.set_in_and_out(0, length - 1);
+    clip.set(kShotcutCaptionProperty, tr("Light").toUtf8().constData());
+    MLT.ensureHasUuid(clip);
+    filter.set(kShotcutFilterProperty, "vjLoop");
+    filter.set("threshold", -30.0);
+    filter.set("release", 0.45);
+    filter.set("intensity", 1.0);
+    filter.set("opacity", 1.0);
+    const QByteArray encoded = envelope.toBase64();
+    filter.set("envelope", encoded.constData());
+    filter.set_in_and_out(0, length - 1);
+    clip.attach(filter);
+
+    const QString clipXml = MLT.XML(&clip);
+    MAIN.undoStack()->beginMacro(tr("Add light layer"));
+    const int trackIndex = addVideoTrack();
+    setTrackName(trackIndex, tr("Light"));
+    MAIN.undoStack()->push(
+        new Timeline::OverwriteCommand(m_model, trackIndex, 0, clipXml, true));
+    MAIN.undoStack()->endMacro();
+
+    QString message = tr("Light layer added on top. It is black with white flashes from the timeline audio. Run this again after you change the music, and remove the old light track.");
+    if (truncated)
+        message = tr("Light layer added for the first 6 hours. Run this again after you change the music, and remove the old light track.");
+    MAIN.showStatusMessage(message, 15);
 }
 
 /*!

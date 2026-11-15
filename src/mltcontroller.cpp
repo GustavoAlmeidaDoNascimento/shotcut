@@ -18,6 +18,8 @@
 #include "mltcontroller.h"
 
 #include "Logger.h"
+#include "filters/basszoomfilter.h"
+#include "filters/vjloopfilter.h"
 #include "controllers/filtercontroller.h"
 #include "mainwindow.h"
 #include "proxymanager.h"
@@ -69,6 +71,14 @@ Controller::Controller()
         setSafeMode();
     }
     m_repo = Mlt::Factory::init();
+    if (m_repo) {
+        m_repo->register_service(mlt_service_filter_type,
+                                 "vjloop",
+                                 reinterpret_cast<mlt_register_callback>(filter_vjloop_init));
+        m_repo->register_service(mlt_service_filter_type,
+                                 "basszoom",
+                                 reinterpret_cast<mlt_register_callback>(filter_basszoom_init));
+    }
     m_processingMode = Settings.processingMode();
     resetLocale();
     initFiltersClipboard();

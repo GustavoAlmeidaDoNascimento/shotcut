@@ -11702,12 +11702,64 @@ Remova o filtro de legendas antes de remover esta faixa.</translation>
 <context>
     <name>TimelineDock</name>
     <message>
-        <location filename="../src/docks/timelinedock.cpp" line="232"/>
-        <location filename="../src/docks/timelinedock.cpp" line="243"/>
+        <location filename="../src/docks/timelinedock.cpp" line="234"/>
+        <location filename="../src/docks/timelinedock.cpp" line="245"/>
         <location filename="../src/docks/timelinedock.cpp.orig" line="232"/>
         <location filename="../src/docks/timelinedock.cpp.orig" line="243"/>
         <source>Timeline</source>
         <translation>Linha do tempo</translation>
+    </message>
+    <message>
+        <source>Add Light Layer</source>
+        <translation>Adicionar camada de luz</translation>
+    </message>
+    <message>
+        <source>Light layer</source>
+        <translation>Camada de luz</translation>
+    </message>
+    <message>
+        <source>Put music on the timeline first.</source>
+        <translation>Coloque a música na linha do tempo primeiro.</translation>
+    </message>
+    <message>
+        <source>Light layer canceled.</source>
+        <translation>Camada de luz cancelada.</translation>
+    </message>
+    <message>
+        <source>No audio was found on the timeline.</source>
+        <translation>Nenhum áudio foi encontrado na linha do tempo.</translation>
+    </message>
+    <message>
+        <source>Could not read the timeline audio.</source>
+        <translation>Não foi possível ler o áudio da linha do tempo.</translation>
+    </message>
+    <message>
+        <source>Could not create the light layer.</source>
+        <translation>Não foi possível criar a camada de luz.</translation>
+    </message>
+    <message>
+        <source>Light</source>
+        <translation>Luz</translation>
+    </message>
+    <message>
+        <source>Add light layer</source>
+        <translation>Adicionar camada de luz</translation>
+    </message>
+    <message>
+        <source>Light layer added on top. It is black with white flashes from the timeline audio. Run this again after you change the music, and remove the old light track.</source>
+        <translation>Camada de luz adicionada por cima. Ela fica preta com flashes brancos do áudio da linha do tempo. Rode de novo depois de mudar a música e apague a faixa de luz antiga.</translation>
+    </message>
+    <message>
+        <source>Light layer added for the first 6 hours. Run this again after you change the music, and remove the old light track.</source>
+        <translation>Camada de luz adicionada para as primeiras 6 horas. Rode de novo depois de mudar a música e apague a faixa de luz antiga.</translation>
+    </message>
+    <message>
+        <source>Reading the timeline audio…</source>
+        <translation>Lendo o áudio da linha do tempo…</translation>
+    </message>
+    <message>
+        <source>Cancel</source>
+        <translation>Cancelar</translation>
     </message>
     <message>
         <location filename="../src/docks/timelinedock.cpp" line="1561"/>
@@ -14091,6 +14143,24 @@ IRE: %2</translation>
 </context>
 <context>
     <name>meta</name>
+    <message>
+        <source>Bass Zoom</source>
+        <translation>Zoom no grave</translation>
+    </message>
+    <message>
+        <source>bass zoom kick pump scale music dj</source>
+        <comment>search keywords for the Bass Zoom video filter</comment>
+        <translation>grave zoom kick batida escala música dj</translation>
+    </message>
+    <message>
+        <source>Light Layer</source>
+        <translation>Camada de luz</translation>
+    </message>
+    <message>
+        <source>white flash strobe light dj vj audio music</source>
+        <comment>search keywords for the Light Layer video filter</comment>
+        <translation>flash branco estrobo luz dj vj áudio música</translation>
+    </message>
     <message>
         <location filename="../src/qml/filters/alpha_adjust/meta.qml" line="6"/>
         <source>Alpha Channel: Adjust</source>
@@ -17185,6 +17255,38 @@ IRE: %2</translation>
 </context>
 <context>
     <name>ui</name>
+    <message>
+        <source>Add this filter to Timeline &gt; Output. It measures the bass of the whole timeline and zooms the picture in while that bass is loud. Sensitivity sets how far the same bass pushes the zoom.</source>
+        <translation>Adicione este filtro em Linha do tempo &gt; Saída. Ele mede o grave de toda a linha do tempo e dá zoom na imagem enquanto esse grave está alto. A sensibilidade define o quanto o mesmo grave empurra o zoom.</translation>
+    </message>
+    <message>
+        <source>Sensitivity</source>
+        <translation>Sensibilidade</translation>
+    </message>
+    <message>
+        <source>0 stays still. Higher values zoom farther on the same bass.</source>
+        <translation>0 fica parado. Valores maiores dão mais zoom no mesmo grave.</translation>
+    </message>
+    <message>
+        <source>Timeline &gt; Add Light Layer reads the audio already on the timeline and adds a video track of white flashes on black. These sliders reshape that flash without reading the audio again. After you change the music, run Add Light Layer again and remove the old light track.</source>
+        <translation>Linha do tempo &gt; Adicionar camada de luz lê o áudio que já está na linha do tempo e adiciona uma faixa de vídeo com flashes brancos no preto. Estes controles mudam o flash sem ler o áudio de novo. Depois de mudar a música, rode Adicionar camada de luz outra vez e apague a faixa de luz antiga.</translation>
+    </message>
+    <message>
+        <source>Closer to 0 reacts only to the loudest hits. More negative reacts to quieter sound.</source>
+        <translation>Perto de 0 só reage aos picos mais altos. Mais negativo reage a sons mais baixos.</translation>
+    </message>
+    <message>
+        <source>How quickly a flash fades back to black.</source>
+        <translation>A rapidez com que o flash volta para o preto.</translation>
+    </message>
+    <message>
+        <source>Scales every flash. 100% lets the loud hits go full white.</source>
+        <translation>Escala cada flash. 100% deixa os picos altos ficarem branco total.</translation>
+    </message>
+    <message>
+        <source>100% is solid white on black. Lower values make the flashes dimmer.</source>
+        <translation>100% é branco sólido no preto. Valores menores deixam os flashes mais fracos.</translation>
+    </message>
     <message>
         <location filename="../src/qml/filters/alpha_adjust/ui.qml" line="58"/>
         <location filename="../src/qml/filters/ambisonic_decoder/ui.qml" line="296"/>

@@ -321,6 +321,20 @@ if(UNIX AND NOT APPLE)
   target_link_libraries(shotcut PRIVATE Qt6::DBus X11::X11)
   target_sources(shotcut PRIVATE linuxtools.cpp linuxtools.h)
 endif()
+target_sources(shotcut PRIVATE filters/vjloopfilter.cpp filters/vjloopfilter.h filters/basszoomfilter.cpp filters/basszoomfilter.h lightlayer.cpp lightlayer.h)
+
+# melt runs the export in a separate process, so it only sees filters registered
+# by an MLT module. Preview uses the copy linked into shotcut itself.
+add_library(mltvjloop MODULE
+  filters/vjloopmodule.cpp
+  filters/vjloopfilter.cpp
+  filters/basszoomfilter.cpp)
+set_target_properties(mltvjloop PROPERTIES PREFIX "lib" OUTPUT_NAME "mltvjloop")
+target_link_libraries(mltvjloop PRIVATE PkgConfig::mlt++)
+target_include_directories(mltvjloop PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+install(TARGETS mltvjloop
+  RUNTIME DESTINATION lib/mlt
+  LIBRARY DESTINATION lib/mlt)
 
 file(GLOB_RECURSE QML_SRC "qml/*")
 target_sources(shotcut PRIVATE ${QML_SRC})
