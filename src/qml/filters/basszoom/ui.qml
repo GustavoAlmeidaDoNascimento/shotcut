@@ -22,19 +22,24 @@ import Shotcut.Controls as Shotcut
 Item {
     property bool blockUpdate: true
     property string sensitivityParam: 'sensitivity'
+    property string intensityParam: 'intensity'
     property double sensitivityDefault: 65
+    property double intensityDefault: 100
 
     function setControls() {
         blockUpdate = true;
         sensitivitySlider.value = filter.getDouble(sensitivityParam) * 100;
+        var storedIntensity = filter.get(intensityParam);
+        intensitySlider.value = storedIntensity === '' ? intensityDefault : filter.getDouble(intensityParam) * 100;
         blockUpdate = false;
     }
 
     width: 400
-    height: 180
+    height: 230
     Component.onCompleted: {
         if (filter.isNew) {
             filter.set(sensitivityParam, sensitivityDefault / 100);
+            filter.set(intensityParam, intensityDefault / 100);
             filter.savePreset(preset.parameters);
         }
         setControls();
@@ -73,7 +78,7 @@ Item {
             id: preset
 
             Layout.columnSpan: 2
-            parameters: [sensitivityParam]
+            parameters: [sensitivityParam, intensityParam]
             onPresetSelected: setControls()
         }
 
@@ -100,6 +105,31 @@ Item {
 
         Shotcut.UndoButton {
             onClicked: sensitivitySlider.value = sensitivityDefault
+        }
+
+        Label {
+            text: qsTr('Intensity')
+            Layout.alignment: Qt.AlignRight
+            Shotcut.HoverTip {
+                text: qsTr('100% keeps the full zoom. Lower values make the same bass zoom less.')
+            }
+        }
+
+        Shotcut.SliderSpinner {
+            id: intensitySlider
+
+            minimumValue: 0
+            maximumValue: 100
+            decimals: 0
+            suffix: ' %'
+            onValueChanged: {
+                if (!blockUpdate)
+                    filter.set(intensityParam, value / 100);
+            }
+        }
+
+        Shotcut.UndoButton {
+            onClicked: intensitySlider.value = intensityDefault
         }
 
         Item {

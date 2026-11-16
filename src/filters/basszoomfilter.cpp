@@ -198,8 +198,11 @@ static int filterGetAudio(mlt_frame frame,
     if (error || !format || !frequency || !channels || !samples)
         return error;
 
-    const double sensitivity = clamp01(
-        mlt_properties_get_double(MLT_FILTER_PROPERTIES(filter), "sensitivity"));
+    mlt_properties properties = MLT_FILTER_PROPERTIES(filter);
+    const double sensitivity = clamp01(mlt_properties_get_double(properties, "sensitivity"));
+    const double intensity = mlt_properties_get(properties, "intensity")
+                                 ? clamp01(mlt_properties_get_double(properties, "intensity"))
+                                 : 1.0;
 
     mlt_service_lock(MLT_FILTER_SERVICE(filter));
     const bool redraw = data->hasPos && position == data->lastPos;
@@ -222,7 +225,7 @@ static int filterGetAudio(mlt_frame frame,
         if (signal < 1e-7 && redraw)
             target = data->level;
         else
-            target = std::min(kMaxZoom, bass * sensitivity * 1.5);
+            target = std::min(kMaxZoom, bass * sensitivity * 1.5) * intensity;
         zoom = smoothZoom(data, position, fps, target);
     }
     mlt_service_unlock(MLT_FILTER_SERVICE(filter));
@@ -302,6 +305,7 @@ extern "C" mlt_filter filter_basszoom_init(mlt_profile profile,
         mlt_properties properties = MLT_FILTER_PROPERTIES(filter);
         mlt_properties_set_int(properties, "_filter_private", 1);
         mlt_properties_set_double(properties, "sensitivity", 0.65);
+        mlt_properties_set_double(properties, "intensity", 1.0);
         filter->close = filterClose;
         filter->process = filterProcess;
         filter->child = data;

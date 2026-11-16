@@ -17272,6 +17272,10 @@ IRE: %2</translation>
         <translation>0 fica parado. Valores maiores dão mais zoom no mesmo grave.</translation>
     </message>
     <message>
+        <source>100% keeps the full zoom. Lower values make the same bass zoom less.</source>
+        <translation>100% mantém o zoom inteiro. Valores menores deixam o mesmo grave dar menos zoom.</translation>
+    </message>
+    <message>
         <source>The white flash is drawn on top of this video. Between hits the picture stays as it is.</source>
         <translation>O flash branco entra por cima deste vídeo. Entre os picos a imagem continua como está.</translation>
     </message>
